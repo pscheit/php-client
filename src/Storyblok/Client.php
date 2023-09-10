@@ -13,8 +13,8 @@ use Symfony\Component\Cache\CacheItem;
  */
 class Client extends BaseClient
 {
-    const CACHE_VERSION_KEY = 'storyblok_cv';
-    const EXCEPTION_GENERIC_HTTP_ERROR = 'An HTTP Error has occurred!';
+    public const CACHE_VERSION_KEY = 'storyblok_cv';
+    public const EXCEPTION_GENERIC_HTTP_ERROR = 'An HTTP Error has occurred!';
 
     /**
      * @var string
@@ -67,16 +67,19 @@ class Client extends BaseClient
      * @var array
      */
     private $resolvedRelations;
+
     /**
      * List of resolved relations.
      *
      * @var array
      */
     private $resolvedLinks;
+
     /**
      * @var bool
      */
     private $cacheNotFound;
+
     /**
      * @var null|mixed
      */
@@ -106,7 +109,7 @@ class Client extends BaseClient
      *
      * @param bool $enabled
      *
-     * @return Client
+     * @return self
      */
     public function editMode($enabled = true)
     {
@@ -120,7 +123,7 @@ class Client extends BaseClient
      *
      * @param string $language
      *
-     * @return Client
+     * @return self
      */
     public function language($language = 'default')
     {
@@ -144,7 +147,7 @@ class Client extends BaseClient
      *
      * @param string $fallbackLanguage
      *
-     * @return Client
+     * @return self
      */
     public function fallbackLanguage($fallbackLanguage = 'default')
     {
@@ -168,7 +171,7 @@ class Client extends BaseClient
      *
      * @param bool $enabled
      *
-     * @return Client
+     * @return self
      */
     public function cacheNotFound($enabled = true)
     {
@@ -324,7 +327,7 @@ class Client extends BaseClient
     /**
      * Gets cache version from cache or as timestamp.
      *
-     * @return null|int
+     * @return null|mixed
      */
     function getCacheVersion()
     {
@@ -340,7 +343,7 @@ class Client extends BaseClient
      *
      * @param string $release
      *
-     * @return Client
+     * @return self
      */
     public function setRelease($release)
     {
@@ -354,7 +357,7 @@ class Client extends BaseClient
      *
      * @param string $slug Slug
      *
-     * @return Client
+     * @return self
      *
      * @throws ApiException
      */
@@ -368,7 +371,7 @@ class Client extends BaseClient
      *
      * @param string $uuid UUID
      *
-     * @return Client
+     * @return self
      *
      * @throws ApiException
      */
@@ -641,7 +644,7 @@ class Client extends BaseClient
         return $this->_generateTree($tree, 0);
     }
 
-    public function cacheClear()
+    public function cacheClear(): void
     {
         $this->cache->clear();
     }
@@ -652,7 +655,7 @@ class Client extends BaseClient
      * @param \stdClass $data
      * @param array     $queryString
      */
-    function getResolvedRelations($data, $queryString)
+    public function getResolvedRelations($data, $queryString): void
     {
         $this->resolvedRelations = [];
         $relations = [];
@@ -689,6 +692,9 @@ class Client extends BaseClient
         }
     }
 
+    /**
+     * @return false|array
+     */
     public function getResolvedRelationByUuid($uuid)
     {
         if (\array_key_exists($uuid, $this->resolvedRelations)) {
@@ -703,7 +709,7 @@ class Client extends BaseClient
      *
      * @param \stdClass $data
      */
-    function getResolvedLinks($data, array $queryString)
+    public function getResolvedLinks($data, array $queryString): void
     {
         $this->resolvedLinks = [];
         $links = [];
@@ -747,7 +753,7 @@ class Client extends BaseClient
     {
         $enrichedContent = $data;
 
-        if (isset($data['component'])) {
+        if (isset($data['component']) && \is_array($enrichedContent)) {
             if (!$this->isStopResolving($level)) {
                 foreach ($data as $fieldName => $fieldValue) {
                     if (isset($fieldValue['_stopResolving']) && $fieldValue['_stopResolving']) {
@@ -759,7 +765,7 @@ class Client extends BaseClient
                     $enrichedContent[$fieldName] = $this->enrichContent($enrichedContent[$fieldName], $level + 1);
                 }
             }
-        } elseif (\is_array($data)) {
+        } elseif (\is_array($data) && \is_array($enrichedContent)) {
             if (!$this->isStopResolving($level)) {
                 foreach ($data as $key => $value) {
                     if (\is_string($value) && \array_key_exists($value, $this->resolvedRelations)) {
@@ -795,7 +801,7 @@ class Client extends BaseClient
         return 'published' === $this->getVersion();
     }
 
-    public function getCachedItem(string $key)
+    public function getCachedItem(string $key): CacheItem
     {
         if ($this->isCache()) {
             try {
@@ -813,7 +819,7 @@ class Client extends BaseClient
      * @param string $slug   Slug
      * @param bool   $byUuid
      *
-     * @return Client
+     * @return self
      *
      * @throws ApiException
      */
@@ -1001,7 +1007,7 @@ class Client extends BaseClient
      *
      * @return array
      */
-    private function _generateTree($items, $parent = 0)
+    private function _generateTree(array $items, int $parent = 0): array
     {
         $tree = [];
 
@@ -1023,12 +1029,8 @@ class Client extends BaseClient
 
     /**
      * Save's the current response in the cache if version is published.
-     *
-     * @param Response $response
-     * @param string   $key
-     * @param string   $version
      */
-    private function _save($response, $key, $version)
+    private function _save(Response $response, string $key, string $version): void
     {
         $this->_assignState($response);
         if ($this->isCache()
@@ -1039,17 +1041,20 @@ class Client extends BaseClient
         }
     }
 
+    /**
+     * @phpstan-assert-if-true AbstractAdapter $this->cache
+     */
     private function isCache(): bool
     {
         return (null !== $this->cache) && ($this->cache instanceof AbstractAdapter);
     }
 
-    private function cacheSave($value, string $key)
+    private function cacheSave($value, string $key): bool
     {
         if ($this->isCache()) {
             $cacheItem = $this->cache->getItem($key);
             $cacheItem->set($value);
-            if ('object' === \gettype($value) && 'Storyblok\\Response' === \get_class($value) && \is_array($value->getBody()) && \array_key_exists('cv', $value->getBody())) {
+            if ('object' === \gettype($value) && 'Storyblok\\Response' === \get_class($value) && $value instanceof Response && \is_array($value->getBody()) && \array_key_exists('cv', $value->getBody())) {
                 // $cachedCv = $this->cache->getItem(self::CACHE_VERSION_KEY);
                 // $cachedCv->set($value->getBody()['cv']);
                 $this->setCacheVersion(false, $value->getBody()['cv']);
@@ -1062,6 +1067,9 @@ class Client extends BaseClient
         return false;
     }
 
+    /**
+     * @return false|CacheItem
+     */
     private function cacheGet(string $key)
     {
         if ($this->isCache()) {
@@ -1074,7 +1082,7 @@ class Client extends BaseClient
     /**
      * Assigns the httpResponseBody and httpResponseHeader to '$this';.
      */
-    private function _assignState(Response $response)
+    private function _assignState(Response $response): void
     {
         $this->responseBody = $response->httpResponseBody;
         $this->responseHeaders = $response->httpResponseHeaders;
@@ -1086,7 +1094,7 @@ class Client extends BaseClient
      *
      * @param mixed $options
      */
-    private function _prepareOptionsForKey($options)
+    private function _prepareOptionsForKey($options): array
     {
         $prepared = [];
         $keyOrder = [];
@@ -1099,17 +1107,17 @@ class Client extends BaseClient
         return $prepared;
     }
 
-    private function _getCacheKey($key = '')
+    private function _getCacheKey($key = ''): string
     {
         return hash('sha256', $key);
     }
 
-    private function settingStopResolving(&$data)
+    private function settingStopResolving(&$data): void
     {
         $data['_stopResolving'] = true;
     }
 
-    private function isStopResolving($level)
+    private function isStopResolving($level): bool
     {
         return $level > 4;
     }
